@@ -1,12 +1,17 @@
 package com.inop.aled;
 
 import android.app.KeyguardManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.PowerManager;
 import android.renderscript.ScriptIntrinsicYuvToRGB;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -33,10 +38,37 @@ public class SettingsActivity extends AppCompatActivity implements ColorObserver
     public View squareView;
     public LockedScreenManager lsm;
 
+
+    BroadcastReceiver mBroadcast = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.e("debug", "on receive");
+            if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                Log.e("debug", "Screen ON");
+            } else if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
+                Log.e("debug", "Screen OFF");
+                Intent intentActivity = new Intent(context, Wakeup.class);
+                PendingIntent pendingIntent = PendingIntent.getActivity(context,
+                        12345, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                context.startActivity(intentActivity);
+            }
+
+        }
+    };
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         lsm = new LockedScreenManager();
+
+        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN |
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN |
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+
         if (savedInstanceState == null) {
             getSupportFragmentManager()
                     .beginTransaction()
@@ -44,21 +76,6 @@ public class SettingsActivity extends AppCompatActivity implements ColorObserver
         }
 
         getSupportActionBar().hide();
-
-        getWindow().setType(
-                WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
-        getWindow().addFlags( WindowManager.LayoutParams.FLAG_FULLSCREEN
-                        | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-                        | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-                        | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-        );
-        getWindow().addFlags( WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON );
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
-
 
         switch (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) {
             case Configuration.UI_MODE_NIGHT_YES:
@@ -77,43 +94,7 @@ public class SettingsActivity extends AppCompatActivity implements ColorObserver
                 break;
         }
 
-        /*
-        final GestureDetector gd = new GestureDetector(getApplicationContext(), new GestureDetector.SimpleOnGestureListener() {
-
-            @Override
-            public boolean onDoubleTap(MotionEvent e) {
-                System.out.println("double tap");
-                final Handler handler = new Handler();
-                // NOT WORKING HAHAHHAHA :@
-                TextView textView = new TextView(getApplicationContext());
-                textView.setText("TEST TEST TEST :)");
-
-                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.MATCH_PARENT
-                );
-                textView.setLayoutParams(params);
-                LinearLayout layout = findViewById(R.id.test);
-                layout.addView(textView);
-                Toast.makeText(getApplicationContext(), "Double tap", Toast.LENGTH_LONG);
-                setContentView(R.layout.test);
-                // UNTIL HERE :^(
-
-                handler.postDelayed(new Runnable() {
-                    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-                    @Override
-                    public void run() {
-                        Intent i = new Intent(Intent.ACTION_MAIN);
-                        i.addCategory(Intent.CATEGORY_HOME);
-                        startActivity(i);
-                        finish();
-                        finishAndRemoveTask();
-                    }
-                }, 500);
-                return true;
-            }
-        });*/
-
+        registerReceiver(mBroadcast, new IntentFilter(Intent.ACTION_SCREEN_OFF));
 
         Switch s = (Switch) findViewById(R.id.switch2);
         Boolean switchState = s.isChecked();
@@ -142,9 +123,7 @@ public class SettingsActivity extends AppCompatActivity implements ColorObserver
                         });
             }
         });
-
     }
-
 
     final GestureDetector gestureDetector = new GestureDetector(new GestureDetector.SimpleOnGestureListener() {
         public void onLongPress(MotionEvent e) {
